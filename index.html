@@ -6,7 +6,6 @@
     <title>3D Tic-Tac-Toe Game</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
         body {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
@@ -15,7 +14,6 @@
             align-items: center;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        
         .container {
             text-align: center;
             background: rgba(255, 255, 255, 0.95);
@@ -23,7 +21,6 @@
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
-        
         .memorial {
             font-size: 18px;
             font-weight: bold;
@@ -33,32 +30,22 @@
             background: #f0f4ff;
             border-left: 4px solid #667eea;
         }
-        
-        h1 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 32px;
-        }
-        
+        h1 { color: #333; margin-bottom: 10px; font-size: 32px; }
         .status {
             font-size: 18px;
             margin: 20px 0;
             color: #666;
             min-height: 30px;
         }
-        
         .status.x { color: #667eea; font-weight: bold; }
         .status.o { color: #ff6b6b; font-weight: bold; }
         .status.winner { color: #51cf66; font-weight: bold; font-size: 20px; }
-        
         .board {
             display: grid;
             grid-template-columns: repeat(3, 100px);
             gap: 10px;
             margin: 30px auto;
-            perspective: 1000px;
         }
-        
         .cell {
             width: 100px;
             height: 100px;
@@ -72,30 +59,10 @@
             color: white;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
-        
-        .cell:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-        }
-        
-        .cell.x {
-            background: linear-gradient(135deg, #667eea 0%, #5568d3 100%);
-            color: #fff;
-        }
-        
-        .cell.o {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
-            color: #fff;
-        }
-        
-        .cell:disabled {
-            cursor: not-allowed;
-        }
-        
-        .controls {
-            margin-top: 30px;
-        }
-        
+        .cell:hover { transform: translateY(-5px); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); }
+        .cell.x { background: linear-gradient(135deg, #667eea 0%, #5568d3 100%); }
+        .cell.o { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%); }
+        .controls { margin-top: 30px; }
         button {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -107,16 +74,10 @@
             transition: all 0.3s ease;
             font-weight: bold;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            margin: 5px;
         }
-        
-        button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-        }
-        
-        button:active {
-            transform: translateY(-1px);
-        }
+        button:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); }
+        .sound-btn { background: white; color: #667eea; border: 2px solid #667eea; }
     </style>
 </head>
 <body>
@@ -127,6 +88,7 @@
         <div class="board" id="board"></div>
         <div class="controls">
             <button onclick="resetGame()">New Game</button>
+            <button class="sound-btn" onclick="toggleSound()" id="soundBtn">🔊 Sound On</button>
         </div>
     </div>
 
@@ -136,17 +98,47 @@
         let gameBoard = Array(9).fill(null);
         let gameActive = true;
         let isPlayerTurn = true;
+        let soundEnabled = true;
+        let audioContext = null;
 
         const winningCombinations = [
-            [0, 1, 2],
-            [3, 4, 5],
-            [6, 7, 8],
-            [0, 3, 6],
-            [1, 4, 7],
-            [2, 5, 8],
-            [0, 4, 8],
-            [2, 4, 6]
+            [0, 1, 2], [3, 4, 5], [6, 7, 8],
+            [0, 3, 6], [1, 4, 7], [2, 5, 8],
+            [0, 4, 8], [2, 4, 6]
         ];
+
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(freq, dur = 100) {
+            if (!soundEnabled) return;
+            initAudio();
+            const now = audioContext.currentTime;
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now);
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + dur / 1000);
+            osc.start(now);
+            osc.stop(now + dur / 1000);
+        }
+
+        function playMoveSound() { playSound(400, 100); }
+        function playAIMoveSound() { playSound(300, 100); }
+        function playWinSound() { playSound(600, 150); setTimeout(() => playSound(700, 150), 150); setTimeout(() => playSound(800, 200), 300); }
+        function playLoseSound() { playSound(200, 200); setTimeout(() => playSound(150, 300), 200); }
+        function playDrawSound() { playSound(400, 100); setTimeout(() => playSound(500, 100), 100); }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundBtn').textContent = soundEnabled ? '🔊 Sound On' : '🔇 Sound Off';
+        }
 
         function initBoard() {
             const board = document.getElementById('board');
@@ -166,11 +158,8 @@
                 const cell = document.getElementById(`cell-${index}`);
                 cell.textContent = value || '';
                 cell.className = 'cell';
-                if (value === PLAYER) {
-                    cell.classList.add('x');
-                } else if (value === AI) {
-                    cell.classList.add('o');
-                }
+                if (value === PLAYER) cell.classList.add('x');
+                else if (value === AI) cell.classList.add('o');
                 cell.disabled = value !== null || !gameActive;
             });
         }
@@ -178,6 +167,7 @@
         function playerMove(index) {
             if (gameBoard[index] === null && gameActive && isPlayerTurn) {
                 gameBoard[index] = PLAYER;
+                playMoveSound();
                 renderBoard();
                 checkGameStatus();
                 if (gameActive) {
@@ -189,11 +179,10 @@
 
         function aiMove() {
             if (!gameActive) return;
-
-            // Try to win
             let move = findWinningMove(AI);
             if (move !== -1) {
                 gameBoard[move] = AI;
+                playAIMoveSound();
                 renderBoard();
                 checkGameStatus();
                 if (gameActive) {
@@ -202,11 +191,10 @@
                 }
                 return;
             }
-
-            // Block player from winning
             move = findWinningMove(PLAYER);
             if (move !== -1) {
                 gameBoard[move] = AI;
+                playAIMoveSound();
                 renderBoard();
                 checkGameStatus();
                 if (gameActive) {
@@ -215,10 +203,9 @@
                 }
                 return;
             }
-
-            // Take center if available
             if (gameBoard[4] === null) {
                 gameBoard[4] = AI;
+                playAIMoveSound();
                 renderBoard();
                 checkGameStatus();
                 if (gameActive) {
@@ -227,13 +214,12 @@
                 }
                 return;
             }
-
-            // Take corners
             const corners = [0, 2, 6, 8];
             const availableCorners = corners.filter(i => gameBoard[i] === null);
             if (availableCorners.length > 0) {
                 const corner = availableCorners[Math.floor(Math.random() * availableCorners.length)];
                 gameBoard[corner] = AI;
+                playAIMoveSound();
                 renderBoard();
                 checkGameStatus();
                 if (gameActive) {
@@ -242,12 +228,11 @@
                 }
                 return;
             }
-
-            // Take any available
             const available = gameBoard.map((val, idx) => val === null ? idx : null).filter(val => val !== null);
             if (available.length > 0) {
                 const move = available[Math.floor(Math.random() * available.length)];
                 gameBoard[move] = AI;
+                playAIMoveSound();
                 renderBoard();
                 checkGameStatus();
                 if (gameActive) {
@@ -273,13 +258,19 @@
                 const [a, b, c] = combo;
                 if (gameBoard[a] && gameBoard[a] === gameBoard[b] && gameBoard[a] === gameBoard[c]) {
                     gameActive = false;
-                    updateStatus(gameBoard[a] === PLAYER ? 'You Win! 🎉' : 'AI Wins! 🤖');
+                    if (gameBoard[a] === PLAYER) {
+                        playWinSound();
+                        updateStatus('You Win! 🎉');
+                    } else {
+                        playLoseSound();
+                        updateStatus('AI Wins! 🤖');
+                    }
                     return;
                 }
             }
-
             if (gameBoard.every(cell => cell !== null)) {
                 gameActive = false;
+                playDrawSound();
                 updateStatus('Draw! 🤝');
             }
         }
@@ -306,7 +297,6 @@
             updateStatus();
         }
 
-        // Initialize game
         initBoard();
         updateStatus();
     </script>
