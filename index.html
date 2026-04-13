@@ -3,50 +3,312 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Tic-Tac-Toe</title>
+    <title>3D Tic-Tac-Toe Game</title>
     <style>
-        body { margin: 0; }
-        canvas { display: block; }
-        #info { position: absolute; top: 10px; left: 10px; color: white; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .memorial {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        
+        .status {
+            font-size: 18px;
+            margin: 20px 0;
+            color: #666;
+            min-height: 30px;
+        }
+        
+        .status.x { color: #667eea; font-weight: bold; }
+        .status.o { color: #ff6b6b; font-weight: bold; }
+        .status.winner { color: #51cf66; font-weight: bold; font-size: 20px; }
+        
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            gap: 10px;
+            margin: 30px auto;
+            perspective: 1000px;
+        }
+        
+        .cell {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 10px;
+            font-size: 36px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .cell:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .cell.x {
+            background: linear-gradient(135deg, #667eea 0%, #5568d3 100%);
+            color: #fff;
+        }
+        
+        .cell.o {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            color: #fff;
+        }
+        
+        .cell:disabled {
+            cursor: not-allowed;
+        }
+        
+        .controls {
+            margin-top: 30px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(-1px);
+        }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-    <div id="info">This is a game commemorating Microsoft founder's first memory</div>
+    <div class="container">
+        <div class="memorial">This is a game commemorating Microsoft founder's first memory</div>
+        <h1>3D Tic-Tac-Toe</h1>
+        <div class="status" id="status">Your turn (X)</div>
+        <div class="board" id="board"></div>
+        <div class="controls">
+            <button onclick="resetGame()">New Game</button>
+        </div>
+    </div>
+
     <script>
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+        const PLAYER = 'X';
+        const AI = 'O';
+        let gameBoard = Array(9).fill(null);
+        let gameActive = true;
+        let isPlayerTurn = true;
 
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        camera.position.z = 5;
+        const winningCombinations = [
+            [0, 1, 2],
+            [3, 4, 5],
+            [6, 7, 8],
+            [0, 3, 6],
+            [1, 4, 7],
+            [2, 5, 8],
+            [0, 4, 8],
+            [2, 4, 6]
+        ];
 
-        const gridSize = 3;
-        const grid = Array.from({ length: gridSize }, () => Array(gridSize).fill(null));
-
-        const createBoard = () => {
-            const material = new THREE.LineBasicMaterial({ color: 0x0000ff });
-
-            for (let i = -1; i < gridSize; i++) {
-                const geometry1 = new THREE.Geometry();
-                geometry1.vertices.push(new THREE.Vector3(-1, i, 0), new THREE.Vector3(1, i, 0));
-                scene.add(new THREE.Line(geometry1, material));
-
-                const geometry2 = new THREE.Geometry();
-                geometry2.vertices.push(new THREE.Vector3(i, -1, 0), new THREE.Vector3(i, 1, 0));
-                scene.add(new THREE.Line(geometry2, material));
+        function initBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('button');
+                cell.className = 'cell';
+                cell.id = `cell-${i}`;
+                cell.onclick = () => playerMove(i);
+                board.appendChild(cell);
             }
-        };
+            renderBoard();
+        }
 
-        const render = () => {
-            requestAnimationFrame(render);
-            renderer.render(scene, camera);
-        };
+        function renderBoard() {
+            gameBoard.forEach((value, index) => {
+                const cell = document.getElementById(`cell-${index}`);
+                cell.textContent = value || '';
+                cell.className = 'cell';
+                if (value === PLAYER) {
+                    cell.classList.add('x');
+                } else if (value === AI) {
+                    cell.classList.add('o');
+                }
+                cell.disabled = value !== null || !gameActive;
+            });
+        }
 
-        createBoard();
-        render();
+        function playerMove(index) {
+            if (gameBoard[index] === null && gameActive && isPlayerTurn) {
+                gameBoard[index] = PLAYER;
+                renderBoard();
+                checkGameStatus();
+                if (gameActive) {
+                    isPlayerTurn = false;
+                    setTimeout(aiMove, 500);
+                }
+            }
+        }
+
+        function aiMove() {
+            if (!gameActive) return;
+
+            // Try to win
+            let move = findWinningMove(AI);
+            if (move !== -1) {
+                gameBoard[move] = AI;
+                renderBoard();
+                checkGameStatus();
+                if (gameActive) {
+                    isPlayerTurn = true;
+                    updateStatus();
+                }
+                return;
+            }
+
+            // Block player from winning
+            move = findWinningMove(PLAYER);
+            if (move !== -1) {
+                gameBoard[move] = AI;
+                renderBoard();
+                checkGameStatus();
+                if (gameActive) {
+                    isPlayerTurn = true;
+                    updateStatus();
+                }
+                return;
+            }
+
+            // Take center if available
+            if (gameBoard[4] === null) {
+                gameBoard[4] = AI;
+                renderBoard();
+                checkGameStatus();
+                if (gameActive) {
+                    isPlayerTurn = true;
+                    updateStatus();
+                }
+                return;
+            }
+
+            // Take corners
+            const corners = [0, 2, 6, 8];
+            const availableCorners = corners.filter(i => gameBoard[i] === null);
+            if (availableCorners.length > 0) {
+                const corner = availableCorners[Math.floor(Math.random() * availableCorners.length)];
+                gameBoard[corner] = AI;
+                renderBoard();
+                checkGameStatus();
+                if (gameActive) {
+                    isPlayerTurn = true;
+                    updateStatus();
+                }
+                return;
+            }
+
+            // Take any available
+            const available = gameBoard.map((val, idx) => val === null ? idx : null).filter(val => val !== null);
+            if (available.length > 0) {
+                const move = available[Math.floor(Math.random() * available.length)];
+                gameBoard[move] = AI;
+                renderBoard();
+                checkGameStatus();
+                if (gameActive) {
+                    isPlayerTurn = true;
+                    updateStatus();
+                }
+            }
+        }
+
+        function findWinningMove(player) {
+            for (let combo of winningCombinations) {
+                const values = combo.map(i => gameBoard[i]);
+                const count = values.filter(v => v === player).length;
+                if (count === 2 && values.filter(v => v === null).length === 1) {
+                    return combo[values.indexOf(null)];
+                }
+            }
+            return -1;
+        }
+
+        function checkGameStatus() {
+            for (let combo of winningCombinations) {
+                const [a, b, c] = combo;
+                if (gameBoard[a] && gameBoard[a] === gameBoard[b] && gameBoard[a] === gameBoard[c]) {
+                    gameActive = false;
+                    updateStatus(gameBoard[a] === PLAYER ? 'You Win! 🎉' : 'AI Wins! 🤖');
+                    return;
+                }
+            }
+
+            if (gameBoard.every(cell => cell !== null)) {
+                gameActive = false;
+                updateStatus('Draw! 🤝');
+            }
+        }
+
+        function updateStatus(message = null) {
+            const statusEl = document.getElementById('status');
+            if (message) {
+                statusEl.textContent = message;
+                statusEl.className = 'status winner';
+            } else if (isPlayerTurn) {
+                statusEl.textContent = 'Your turn (X)';
+                statusEl.className = 'status x';
+            } else {
+                statusEl.textContent = 'AI is thinking... (O)';
+                statusEl.className = 'status o';
+            }
+        }
+
+        function resetGame() {
+            gameBoard = Array(9).fill(null);
+            gameActive = true;
+            isPlayerTurn = true;
+            initBoard();
+            updateStatus();
+        }
+
+        // Initialize game
+        initBoard();
+        updateStatus();
     </script>
 </body>
 </html>
