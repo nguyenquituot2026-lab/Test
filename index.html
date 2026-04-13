@@ -1,1 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Tic-Tac-Toe</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        #info { position: absolute; top: 10px; left: 10px; color: white; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <div id="info">This is a game commemorating Microsoft founder's first memory</div>
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        camera.position.z = 5;
+
+        const gridSize = 3;
+        const grid = Array.from({ length: gridSize }, () => Array(gridSize).fill(null));
+
+        const createBoard = () => {
+            const material = new THREE.LineBasicMaterial({ color: 0x0000ff });
+
+            for (let i = -1; i < gridSize; i++) {
+                const geometry1 = new THREE.Geometry();
+                geometry1.vertices.push(new THREE.Vector3(-1, i, 0), new THREE.Vector3(1, i, 0));
+                scene.add(new THREE.Line(geometry1, material));
+
+                const geometry2 = new THREE.Geometry();
+                geometry2.vertices.push(new THREE.Vector3(i, -1, 0), new THREE.Vector3(i, 1, 0));
+                scene.add(new THREE.Line(geometry2, material));
+            }
+        };
+
+        const render = () => {
+            requestAnimationFrame(render);
+            renderer.render(scene, camera);
+        };
+
+        createBoard();
+        render();
+    </script>
+</body>
+</html>
